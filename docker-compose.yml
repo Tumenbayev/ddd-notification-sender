@@ -1,0 +1,77 @@
+version: '3.8'
+services:
+  nginx:
+    build:
+      context: ./docker/nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/default.conf
+      - ./app:/var/www
+    depends_on:
+      - php
+
+  php:
+    build:
+      context: ./docker/php
+    restart: unless-stopped
+    volumes:
+      - ./app:/var/www
+      - ./docker/php/conf/php.ini:/usr/local/etc/php/php.ini
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - RABBITMQ_HOST=rabbitmq
+      - MAILHOG_HOST=mailhog
+    depends_on:
+      - mysql
+      - rabbitmq
+      - mailhog
+
+  mysql:
+    image: mysql:8
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  rabbitmq:
+    image: rabbitmq:3.7-management
+    restart: unless-stopped
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  mailhog:
+    image: mailhog/mailhog
+    restart: unless-stopped
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
+  gotify:
+    image: gotify/server:latest
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      - GOTIFY_DATABASE_TYPE=sqlite3
+      - GOTIFY_DATABASE_URL=/app/gotify.db
+      - GOTIFY_SERVER_URL=http://localhost:8080
+    volumes:
+      - gotify_data:/app
+
+volumes:
+  mysql_data:
+  rabbitmq_data:
+  gotify_data:
